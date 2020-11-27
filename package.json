@@ -1,0 +1,26 @@
+{
+  "name": "create-bde-component",
+  "version": "1.0.0",
+  "description": "Command line helper to create components for the BDE platform.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test tests/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ianpold/create-bde-component.git"
+  },
+  "author": "Ian Polding",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ianpold/create-bde-component/issues"
+  },
+  "bin": {
+    "create-bde-component": "./create-bde-component.js"
+  },
+  "homepage": "https://github.com/ianpold/create-bde-component#readme",
+  "dependencies": {
+    "mustache": "^4.0.1",
+    "yargs": "^16.1.1"
+  }
+}
