@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/ianpold/create-bde-component#readme",
   "dependencies": {
+    "enquirer": "^2.3.6",
     "mustache": "^4.0.1",
     "yargs": "^16.1.1"
   }
