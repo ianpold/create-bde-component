@@ -10,9 +10,10 @@ const OPENAPI_TEMPLATE = require.resolve('./templates/openapi.mustache');
 const MVNW = require.resolve('./mvnw');
 
 const README_FILENAME = 'README.md';
+const OPENAPI_FILENAME = 'openapi.yaml';
 const INITIAL_SEMVER='0.1.0'
 
-const BEAM = 'Apache Beam',
+const BEAM = 'Apache Beam'
 const JAVA_CLOUD_RUN = 'Cloud Run (Java)'
 
 const JAVA = 'java'
@@ -21,7 +22,7 @@ function populateTemplate(template, values, outputPath) {
   
   const { name } = values
   
-  fs.readFile(README_TEMPLATE, function (readError, data) {
+  fs.readFile(template, function (readError, data) {
     if (readError) throw err;
     var output = Mustache.render(data.toString(), values);
     if (!fs.existsSync(name)) {
@@ -48,7 +49,7 @@ async function createComponent() {
       name: 'componentType',
       type: 'select',
       message: 'What type of project are you creating?',
-      choices: [componentTypes.BEAM, 'Other']
+      choices: [BEAM, JAVA_CLOUD_RUN, 'Other']
     }
   ]);
 
@@ -59,7 +60,7 @@ async function createComponent() {
   const component = componentFactory(componentType)
   
   console.log(`Creating README for ${componentName}...`)
-  populateTemplate(README_FILENAME, {name : componentName, description: description}, `./${componentName}/README.md`)
+  populateTemplate(README_TEMPLATE, {name : componentName, description: description}, `./${componentName}/${README_FILENAME}`)
   
   const { spawn } = require('child_process')
 
@@ -101,7 +102,7 @@ async function createComponent() {
   }
 
   if (component.http) { 
-    populateTemplate(OPENAPI_TEMPLATE, {name: componentName}, `./${componentName}/openapi.yaml`)
+    populateTemplate(OPENAPI_TEMPLATE, {name: componentName}, `./${componentName}/${OPENAPI_FILENAME}`)
   }
 
 }
