@@ -1,91 +1,128 @@
 #!/usr/bin/env node
 const fs = require('fs');
-const { hideBin } = require('yargs/helpers')
-const yargs = require('yargs/yargs');
 const { prompt } = require('enquirer');
 
 const Mustache = require('mustache')
 
 const README_TEMPLATE = require.resolve('./templates/README.mustache');
+const OPENAPI_TEMPLATE = require.resolve('./templates/openapi.mustache');
 
 const MVNW = require.resolve('./mvnw');
 
 const README_FILENAME = 'README.md';
 const INITIAL_SEMVER='0.1.0'
 
-const JAVA = 'Java'
+const BEAM = 'Apache Beam',
+const JAVA_CLOUD_RUN = 'Cloud Run (Java)'
 
-const argv = yargs(hideBin(process.argv))
-  .command('[component]', 'Initialize a new BDE component', (yargs) => {
-    yargs
-      .positional('component', {
-        describe: 'directory to create. Must match component name'
-      })
-  })
-  // KEPT AS AN EXAMPLE FOR OPTIONS
-  // .option('verbose', {
-  //   alias: 'v',
-  //   type: 'boolean',
-  //   description: 'Run with verbose logging'
-  // })
-  .argv
+const JAVA = 'java'
 
-// KEPT AS EXAMPLE FOR ARG PARSING
-// const componentName = argv._[0];
-
-// if (!componentName) { 
-//   console.error('Please provide a name for the component as the first argument');
-//   process.exit(1);
-// }
+function populateTemplate(template, values, outputPath) { 
+  
+  const { name } = values
+  
+  fs.readFile(README_TEMPLATE, function (readError, data) {
+    if (readError) throw err;
+    var output = Mustache.render(data.toString(), values);
+    if (!fs.existsSync(name)) {
+      fs.mkdirSync(name);
+    }
+    fs.writeFile(outputPath, output, writeErr => { if (writeErr) throw writeErr; })
+  });
+}
 
 async function createComponent() {
 
   const projectArguments = await prompt([
     {
-    type: 'input',
-    name: 'componentName',
-    message: 'What are you going to call your component?'
-  },
-  {
-    type: 'input',
-    name: 'shortDescription',
-    message: 'Please add a short description of what your component does'
+      type: 'input',
+      name: 'componentName',
+      message: 'What are you going to call your component?'
     },
     {
-      name: 'language',
+      type: 'input',
+      name: 'description',
+      message: 'Please add a short description of what your component does'
+    },
+    {
+      name: 'componentType',
       type: 'select',
-      message: 'What programming language will you be using?',
-      choices: [JAVA, 'Other']
+      message: 'What type of project are you creating?',
+      choices: [componentTypes.BEAM, 'Other']
     }
   ]);
+
+
   
-  const { componentName, shortDescription, language } = projectArguments;
+  const { componentName, description, componentType } = projectArguments;
+
+  const component = componentFactory(componentType)
   
   console.log(`Creating README for ${componentName}...`)
+  populateTemplate(README_FILENAME, {name : componentName, description: description}, `./${componentName}/README.md`)
   
-  fs.readFile(README_TEMPLATE, function (readError, data) {
-    if (readError) throw err;
-    var output = Mustache.render(data.toString(), projectArguments);
-    if (!fs.existsSync(componentName)){
-      fs.mkdirSync(componentName);
-    }
-    fs.writeFile(`./${componentName}/${README_FILENAME}`, output, writeErr => { if (writeErr) throw writeErr;})
-  });
+  const { spawn } = require('child_process')
 
-  const { exec } = require('child_process')
+  if (component.language === JAVA) {
 
-  if (language === JAVA) {
-    // const projectArguments = await prompt([
-    //   {
-    //     type: 'input',
-    //     name: 'componentName',
-    //     message: 'What are you going to call your component?'
-    //   }
-    // ]);
+    const workingDirectory = process.cwd()
 
-    exec(`${MVNW} archetype:generate -DarchetypeGroupId=org.apache.maven.archetypes -DarchetypeArtifactId=maven-archetype-simple -DgroupId=com.itv.bde -DartifactId=${componentName} -Dversion=${INITIAL_SEMVER}`)
+    // TODO - Sanitize user input!
+     const { archetypeGroupId, archetypeArtifactId } = component
+
+      const mavenProcess = spawn(`${MVNW}`, [
+        'archetype:generate',
+        `-DoutputDirectory=${workingDirectory}`,
+        `-DarchetypeGroupId=${archetypeGroupId}`,
+        `-DarchetypeArtifactId=${archetypeArtifactId}`,
+        '-DgroupId=com.itv.bde',
+        `-DartifactId=${componentName}`,
+        `-Dversion=${INITIAL_SEMVER}`,
+        '-DinteractiveMode=false'
+      ], { cwd: require.resolve.paths('./')[0] })
+       
+    
+      mavenProcess.stdout.on('data', (data) => {
+        process.stdout.write(data);
+      });
+
+      mavenProcess.stderr.on('data', (data) => {
+        process.stderr.write(data);
+      });
+
+      mavenProcess.on('exit', (code) => {
+        console.log(`child process exited with code ${code}`);
+      });
+
+      mavenProcess.on('error', (code) => {
+        console.error(`Something unexpected has happened. FIX IT!!! ${code}`);
+      });
+    
   }
 
+  if (component.http) { 
+    populateTemplate(OPENAPI_TEMPLATE, {name: componentName}, `./${componentName}/openapi.yaml`)
+  }
+
+}
+
+function componentFactory(componentType) { 
+  switch (componentType) { 
+    case BEAM: return {
+      type: BEAM,
+      language: JAVA,
+      http: false,
+      archetypeGroupId: 'org.apache.beam',
+      archetypeArtifactId: 'beam-sdks-java-maven-archetypes-starter',
+    }
+    case JAVA_CLOUD_RUN: return {
+      type: JAVA_CLOUD_RUN,
+      language: JAVA,
+      http: true,
+      archetypeGroupId: 'org.apache.maven.archetypes',
+      archetypeArtifactId: 'maven-archetype-quickstart',
+    }
+  }    
 }
 
 createComponent();
